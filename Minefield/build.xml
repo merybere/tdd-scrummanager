@@ -1,0 +1,131 @@
+<?xml version="1.0"?>
+
+<project default="crear_war" basedir=".">
+	
+	<taskdef name="deploy" classname="org.apache.catalina.ant.DeployTask">
+		<classpath path="/usr/share/tomcat7/bin/tomcat-juli.jar"/>
+		<classpath path="/usr/share/tomcat7/lib/tomcat-coyote.jar"/>
+		<classpath path="/usr/share/tomcat7/lib/tomcat-util.jar"/>
+		<classpath path="/usr/share/tomcat7/lib/catalina-ant.jar"/>
+	</taskdef>
+	
+	<taskdef name="undeploy" classname="org.apache.catalina.ant.UndeployTask">
+		<classpath path="/usr/share/tomcat7/bin/tomcat-juli.jar"/>
+		<classpath path="/usr/share/tomcat7/lib/tomcat-coyote.jar"/>
+		<classpath path="/usr/share/tomcat7/lib/tomcat-util.jar"/>
+		<classpath path="/usr/share/tomcat7/lib/catalina-ant.jar"/>
+	</taskdef>
+		
+	<taskdef resource="checkstyletask.properties"
+	         classpath="/home/scrummanager/Descargas/checkstyle-5.7-all.jar"/>
+	
+	
+	<property name="src" value="src" />
+	<property name="src_test" value="test" />
+	<property name="checkstyle" value="Checkstyle.xml"/>
+	<property name="web" value="WebContent" />
+	<property name="build" value="build_project" />
+	<property name="project_name" value="Minefield" />
+	<property name="war" value="dist" />
+	<property name="class" value="${build}/WEB-INF/classes/net" />
+	<property name="net" value="${build}/net" />
+	<property name="test" value="junitTest" />
+	<property name="report_test" value="${test}/report" />
+	<property name="libs" value="/home/scrummanager/workspace/libs" />
+	<property name="report_pmd" value="${report_test}/pmd_errors.xml" />
+	
+	<target name="limpiar_dir">
+		<delete dir="${build}"/>
+		<delete dir="${war}"/>
+		<delete dir="${test}"/>
+	</target>
+	
+	<target name="crear_dir" depends="limpiar_dir">
+		<mkdir dir="${build}"/>
+	</target>
+	
+	<target name="compilar" depends="crear_dir">
+		
+		<checkstyle config="${checkstyle}">
+		  <fileset dir="${src}" includes="**/*.java"/>
+		  <formatter type="xml" toFile="${build}/checkstyle_errors.xml"/>
+		</checkstyle>
+		
+		<taskdef name="pmd" 
+			classpath="${libs}/pmd-5.1.0.jar"
+			classname="net.sourceforge.pmd.ant.PMDTask"/>
+		<pmd>
+			<sourceLanguage name="java" version="1.6"/>
+			<ruleset>java-basic</ruleset>
+			<formatter type="xml" tofile="${report_pmd}"/>
+			<fileset dir="${src}">
+	   			<include name="java/lang/*.java"/>
+	  		</fileset>
+	 	</pmd>
+		
+		<javac srcdir="${src}"
+			destdir="${build}"	 
+			classpath="/usr/share/tomcat7/lib/servlet-api.jar" />
+	</target>
+	
+	<target name="copiar_web" depends="compilar">
+		<copy todir="${build}">
+	    	<fileset dir="${web}"/>
+	  	</copy>
+		<copy todir="${class}">
+		    <fileset dir="${net}"/>
+		</copy>
+	</target>
+			
+	<target name="compilar_tests">
+		<mkdir dir="${test}" />
+		<javac srcdir="${src_test}"
+			destdir="${test}" 
+		    classpath="/usr/share/tomcat7/lib/servlet-api.jar; ${libs}/ant-junit-1.9.3.jar; ${libs}/junit-4.11.jar; ${build}"/>
+	</target>
+	
+	<target name="lanzar_tests" depends="compilar_tests">
+		<mkdir dir="${report_test}" />
+
+		<junit printsummary="yes" haltonfailure="yes">
+			<classpath>
+			    <pathelement path="${test}"/>
+				<pathelement path="${build}"/>
+				<pathelement path="${libs}/junit-4.11.jar"/>
+				<pathelement path="${libs}/hamcrest-core-1.3.jar"/>
+				<pathelement path="/usr/share/tomcat7/lib/servlet-api.jar"/>
+			</classpath>
+			
+		  	<batchtest fork="no" todir="${report_test}">
+		    	<fileset dir="${test}"></fileset>
+				<formatter type="xml"/>
+		  	</batchtest>
+		</junit>
+	</target>
+
+	<target name="crear_war">
+		<delete dir="${net}"/>
+		<mkdir dir="${war}"/>
+		<war warfile="${war}/minefield.war" 
+			basedir="${build}" />
+	</target>
+	
+	<target name="undeploy" depends="crear_war">
+		<undeploy 
+			failonerror="no" 
+			url="http://localhost:8080/manager/text" 
+			username="admin" 
+			password="admin.s3cr3t"
+			path="/${project_name}"/>
+	</target> 
+	
+	<target name="deploy" depends="undeploy">
+
+		<deploy url="http://localhost:8080/manager/text" 
+			username="admin" 
+			password="admin.s3cr3t"
+			path="/${project_name}" 
+			war="${war}/minefield.war"/>
+	</target> 
+  
+</project>
